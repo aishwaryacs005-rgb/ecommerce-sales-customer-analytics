@@ -395,29 +395,6 @@ python python/phase9_business_insights.py
 - Seasonal trend identification
 - Actionable recommendation generation
 
----
-
-## Screenshots
-
-> *(Add your Power BI dashboard screenshots here after building the dashboard)*
-
-| Page | Preview |
-|------|---------|
-| Executive Overview | `screenshots/powerbi_page1.png` |
-| Product Analytics | `screenshots/powerbi_page2.png` |
-| Customer Analytics | `screenshots/powerbi_page3.png` |
-| Regional Analytics | `screenshots/powerbi_page4.png` |
-
----
-
-## Author
-
-**Aishwarya C S**  
-Aspiring Data Analyst | Python · SQL · Power BI · AWS
-
-- LinkedIn: linkedin.com/in/aishwaryacs005
-- GitHub: github.com/aishwaryacs005-rgb
-- Email: [your-email]
 
 ---
 
