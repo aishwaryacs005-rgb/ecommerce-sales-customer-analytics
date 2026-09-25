@@ -2,6 +2,28 @@
 
 **End-to-end Data Analytics portfolio project** analyzing 3 years of e-commerce sales data (50,000 orders, 5,000 customers, ₹204 Crores revenue) using Excel, Python, SQL, Power BI, and AWS S3.
 
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
+[![SQL](https://img.shields.io/badge/SQL-SQLite-003B57?style=flat&logo=sqlite&logoColor=white)](https://sqlite.org)
+[![Power BI](https://img.shields.io/badge/Power%20BI-Dashboard-F2C811?style=flat&logo=powerbi&logoColor=black)](powerbi/)
+[![AWS](https://img.shields.io/badge/AWS-S3-FF9900?style=flat&logo=amazonaws&logoColor=white)](aws/)
+[![Excel](https://img.shields.io/badge/Excel-Analysis-217346?style=flat&logo=microsoftexcel&logoColor=white)](excel/)
+
+---
+
+## Dashboard Preview
+
+| Monthly Sales Trend | Category Performance |
+|---|---|
+| ![Monthly Trend](screenshots/01_monthly_sales_trend.png) | ![Category Sales](screenshots/03_category_sales.png) |
+
+| Regional Sales | RFM Segmentation |
+|---|---|
+| ![Regional](screenshots/07_regional_sales.png) | ![RFM](screenshots/16_rfm_segments.png) |
+
+| Top 10 Products | Customer Tier Revenue |
+|---|---|
+| ![Top Products](screenshots/05_top10_products.png) | ![Customer Tier](screenshots/18_customer_tier_revenue.png) |
+
 ---
 
 ## Business Problem
@@ -291,7 +313,7 @@ ecommerce-sales-customer-analytics/
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/ecommerce-sales-customer-analytics.git
+git clone https://github.com/aishwaryacs005-rgb/ecommerce-sales-customer-analytics.git
 cd ecommerce-sales-customer-analytics
 ```
 
@@ -390,11 +412,11 @@ python python/phase9_business_insights.py
 
 ## Author
 
-**[Your Name]**  
+**Aishwarya C S**  
 Aspiring Data Analyst | Python · SQL · Power BI · AWS
 
-- LinkedIn: [your-linkedin-url]
-- GitHub: [your-github-url]
+- LinkedIn: linkedin.com/in/aishwaryacs005
+- GitHub: github.com/aishwaryacs005-rgb
 - Email: [your-email]
 
 ---
