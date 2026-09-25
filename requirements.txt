@@ -1,0 +1,25 @@
+# E-Commerce Analytics Project — Python Dependencies
+# Install all with: pip install -r requirements.txt
+
+# ── Data manipulation ─────────────────────────────────────
+pandas==2.1.4
+numpy==1.26.3
+
+# ── Excel file creation ───────────────────────────────────
+xlsxwriter==3.1.9
+openpyxl==3.1.2
+
+# ── Data visualization ────────────────────────────────────
+matplotlib==3.8.2
+seaborn==0.13.1
+
+# ── AWS S3 access ─────────────────────────────────────────
+boto3==1.34.11
+python-dotenv==1.0.0
+
+# ── SQL database ──────────────────────────────────────────
+sqlalchemy==2.0.25
+
+# ── Jupyter Notebooks (optional) ─────────────────────────
+jupyter==1.0.0
+ipykernel==6.29.0
