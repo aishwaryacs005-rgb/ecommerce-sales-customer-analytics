@@ -1,0 +1,62 @@
+Product_ID,Category,Sub_Category,Product_Name,Cost,Unit_Price
+PRD0001,Electronics,Smartphones,Samsung Galaxy A54,18000,39600
+PRD0002,Electronics,Smartphones,Redmi Note 12,12000,26400
+PRD0003,Electronics,Smartphones,Apple iPhone 13,55000,121000
+PRD0004,Electronics,Smartphones,OnePlus Nord CE 3,22000,48400
+PRD0005,Electronics,Laptops,HP Pavilion 15,42000,92400
+PRD0006,Electronics,Laptops,Dell Inspiron 14,48000,105600
+PRD0007,Electronics,Laptops,Lenovo IdeaPad Slim 5,38000,83600
+PRD0008,Electronics,Laptops,Acer Aspire 7,45000,99000
+PRD0009,Electronics,Accessories,boAt Rockerz 450 Headphones,1500,3300
+PRD0010,Electronics,Accessories,Anker USB-C Charger,800,1760
+PRD0011,Electronics,Accessories,JBL Clip 4 Speaker,3500,7700
+PRD0012,Electronics,Accessories,MI Smart Band 7,2500,5500
+PRD0013,Electronics,Tablets,Samsung Galaxy Tab A8,18000,39600
+PRD0014,Electronics,Tablets,Lenovo Tab M10,14000,30800
+PRD0015,Clothing,Men Wear,Levi's 511 Slim Jeans,2800,5600
+PRD0016,Clothing,Men Wear,Allen Solly Formal Shirt,1800,3600
+PRD0017,Clothing,Men Wear,Puma Running T-Shirt,900,1800
+PRD0018,Clothing,Men Wear,US Polo Chinos,2200,4400
+PRD0019,Clothing,Women Wear,W Brand Kurta Set,1600,3200
+PRD0020,Clothing,Women Wear,Biba Embroidered Suit,2400,4800
+PRD0021,Clothing,Women Wear,Mango Floral Dress,3200,6400
+PRD0022,Clothing,Women Wear,Zara Blazer,4500,9000
+PRD0023,Clothing,Kids Wear,H&M Kids Hoodie,1200,2400
+PRD0024,Clothing,Kids Wear,Carter's Baby Onesie,600,1200
+PRD0025,Clothing,Footwear,Nike Air Max 270,8000,16000
+PRD0026,Clothing,Footwear,Adidas Ultraboost 22,10000,20000
+PRD0027,Clothing,Footwear,Bata Casual Loafer,2200,4400
+PRD0028,Home & Kitchen,Furniture,IKEA KALLAX Shelf,12000,21600
+PRD0029,Home & Kitchen,Furniture,Wooden Study Table,8500,15300
+PRD0030,Home & Kitchen,Appliances,Prestige Induction Cooktop,3500,6300
+PRD0031,Home & Kitchen,Appliances,Butterfly Electric Kettle,1200,2160
+PRD0032,Home & Kitchen,Appliances,Bajaj Mixer Grinder,2800,5040
+PRD0033,Home & Kitchen,Kitchen Tools,Borosil Glass Set (6 pcs),900,1620
+PRD0034,Home & Kitchen,Kitchen Tools,Hawkins Pressure Cooker 5L,2200,3960
+PRD0035,Home & Kitchen,Decor,IKEA Artificial Plant,600,1080
+PRD0036,Home & Kitchen,Decor,Wooden Photo Frame Set,800,1440
+PRD0037,Books,Academic,Data Science from Scratch,1200,1800
+PRD0038,Books,Academic,Python Crash Course,950,1420
+PRD0039,Books,Academic,SQL in 10 Minutes,750,1120
+PRD0040,Books,Fiction,Atomic Habits,499,750
+PRD0041,Books,Fiction,The Alchemist,299,450
+PRD0042,Books,Fiction,Rich Dad Poor Dad,399,600
+PRD0043,Books,Children,Panchatantra Stories,250,380
+PRD0044,Sports,Cricket,SG Cricket Bat,4500,7650
+PRD0045,Sports,Cricket,Kookaburra Cricket Ball (6pk),800,1360
+PRD0046,Sports,Fitness,Boldfit Resistance Bands Set,650,1100
+PRD0047,Sports,Fitness,Strauss Yoga Mat,899,1530
+PRD0048,Sports,Fitness,Nivia Basketball,1200,2040
+PRD0049,Sports,Badminton,Yonex Badminton Racket,2200,3740
+PRD0050,Beauty,Skincare,Neutrogena Face Wash,450,900
+PRD0051,Beauty,Skincare,Lakme Sunscreen SPF 50,380,760
+PRD0052,Beauty,Haircare,Dove Shampoo 650ml,350,700
+PRD0053,Beauty,Haircare,WOW Apple Cider Vinegar Shampoo,550,1100
+PRD0054,Beauty,Makeup,Maybelline Fit Me Foundation,600,1200
+PRD0055,Beauty,Makeup,L'Oreal Lipstick,750,1500
+PRD0056,Groceries,Staples,Aashirvaad Atta 10kg,430,560
+PRD0057,Groceries,Staples,Fortune Basmati Rice 5kg,380,490
+PRD0058,Groceries,Snacks,Lay's Party Pack,250,320
+PRD0059,Groceries,Snacks,Cadbury Celebration Box,450,580
+PRD0060,Groceries,Beverages,Nescafe Classic 200g,550,720
+PRD0061,Groceries,Beverages,Tata Tea Premium 500g,280,360

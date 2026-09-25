@@ -1,0 +1,134 @@
+=================================================================
+  PHASE 4 — DATA CLEANING & TRANSFORMATION
+  Run at: 2026-09-25 20:56:45
+=================================================================
+
+[STEP 1] Loading raw CSV files...
+  regions       : (26, 4)
+  products      : (61, 6)
+  customers     : (5000, 8)
+  orders        : (50000, 5)
+  order_details : (83603, 9)
+  ✓ All files loaded
+
+[STEP 2] Inspecting tables for issues...
+  regions             rows=    26  null_cells=   0  duplicate_rows=   0
+  products            rows=    61  null_cells=   0  duplicate_rows=   0
+  customers           rows= 5,000  null_cells=   0  duplicate_rows=   0
+  orders              rows=50,000  null_cells=   0  duplicate_rows=   0
+  order_details       rows=83,603  null_cells=   0  duplicate_rows=   0
+  ✓ Inspection complete
+
+[STEP 3] Cleaning individual tables...
+  ✓ 3a: Stripped whitespace from all string columns
+  ✓ 3b: Standardised text casing on categorical columns
+  ✓ 3c: Parsed Order_Date to datetime  (failed parses: 0)
+  ✓ 3d: Removed 0 order_detail rows with invalid numeric values
+  ✓ 3e: Duplicate check complete (no duplicates found in this dataset)
+
+[STEP 4] Joining all 5 tables into master dataframe...
+  After joining products    : (83603, 12)
+  After joining orders      : (83603, 16)
+  After joining customers   : (83603, 23)
+  ✓ Master dataframe created
+
+[STEP 5] Handling missing values in master dataframe...
+  ✓ No missing values found — dataset is complete
+  ✓ Missing value handling complete. Remaining nulls: 0
+
+[STEP 6] Enforcing correct data types...
+  ✓ Order_Date  → datetime64
+  ✓ Quantity    → int
+  ✓ Age         → int
+  ✓ Unit_Price  → float
+  ✓ Discount    → float
+  ✓ Sales       → float (2 decimal places)
+  ✓ Cost        → float (2 decimal places)
+  ✓ Profit      → float (2 decimal places)
+
+[STEP 7] Standardising categorical values...
+  Category          : ['Beauty', 'Books', 'Clothing', 'Electronics', 'Groceries', 'Home & Kitchen', 'Sports']
+  Region            : ['Central', 'East', 'North', 'South', 'West']
+  Gender            : ['Female', 'Male']
+  Customer_Type     : ['New', 'Returning']
+  Order_Status      : ['Cancelled', 'Delivered', 'Processing', 'Returned', 'Shipped']
+  Payment_Mode      : ['Cash On Delivery', 'Credit Card', 'Debit Card', 'Emi', 'Net Banking', 'Upi']
+  ✓ Fixed casing: UPI, EMI, Cash on Delivery
+
+[STEP 8] Checking for invalid / impossible values...
+  ✓ Sales <= 0                    : 0 rows affected
+  ✓ Cost <= 0                     : 0 rows affected
+  ✓ Profit < -Cost                : 0 rows affected
+  ✓ Discount > 1                  : 0 rows affected
+  ✓ Discount < 0                  : 0 rows affected
+  ✓ Quantity <= 0                 : 0 rows affected
+  ✓ Age < 18                      : 0 rows affected
+  ✓ Age > 100                     : 0 rows affected
+  ✓ All business rule checks passed — no invalid values found
+
+[STEP 9] Outlier detection (IQR method)...
+  Sales         : 12,866 outliers (15.4%)  [fence: -20,400 – 37,840]
+  Profit        : 13,148 outliers (15.7%)  [fence: -8,900 – 16,220]
+  Unit_Price    : 16,345 outliers (19.6%)  [fence: -8,800 – 17,600]
+  → Decision: Outliers KEPT. High-value Electronics orders are legitimate.
+  → Flag them with an 'Is_High_Value' column for separate analysis.
+
+[STEP 10] Creating calculated columns...
+  ✓ Date columns: Order_Year, Order_Month, Order_Quarter, Order_Month_Name, Order_YearMonth, Order_DayOfWeek
+  ✓ Profit_Margin_Pct = (Profit / Sales) × 100
+  ✓ Revenue = Sales (alias for clarity)
+  ✓ Discount_Amount = Unit_Price × Quantity × Discount
+  ✓ Age_Group: 18–25 / 26–35 / 36–45 / 46–55 / 56+
+  ✓ Is_Profitable = True if Profit > 0
+  ✓ Is_High_Value = True if Sales ≥ ₹121,000 (top 5%)
+  ✓ Season: Festive Season / New Year Sales / Summer / Monsoon
+
+[STEP 11] Selecting and ordering final columns...
+  ✓ Final shape: 83,603 rows × 36 columns
+
+[STEP 12] Final validation checks...
+  Total rows              :     83,603
+  Total columns           :         36
+  Remaining null cells    :          0
+  Remaining duplicates    :          0
+  Date range              : 2022-01-01 → 2024-12-31
+  Unique Orders           :     50,000
+  Unique Customers        :      5,000
+  Unique Products         :         61
+
+  Financial Summary:
+    Total Sales   : ₹2,048,659,972.00
+    Total Cost    : ₹1,097,458,257.00
+    Total Profit  : ₹ 951,201,715.00
+    Profit Margin :          46.43%
+    Avg Order Val : ₹      40,973.20
+
+  Calculated Column Check:
+    Age_Group values     : ['18–25', '26–35', '36–45', '46–55', '56+']
+    Season values        : ['Festive Season', 'Monsoon', 'New Year Sales', 'Summer']
+    Is_Profitable (True) : 83,603
+    Is_High_Value (True) : 4,271
+    Unique YearMonths    : 36 (expect 36 for 3 years)
+
+  Category Distribution:
+    Electronics        : 19,074.0 items  |  ₹1,625,887,186  (79.4%)
+    Clothing           : 17,962.0 items  |  ₹ 202,915,210  (9.9%)
+    Home & Kitchen     : 12,226.0 items  |  ₹ 138,646,656  (6.8%)
+    Sports             : 8,328.0 items  |  ₹  41,928,060  (2.0%)
+    Books              : 9,605.0 items  |  ₹  16,939,994  (0.8%)
+    Beauty             : 8,017.0 items  |  ₹  14,478,807  (0.7%)
+    Groceries          : 8,391.0 items  |  ₹   7,864,059  (0.4%)
+
+  Regional Distribution:
+    North      : ₹ 517,446,038  (25.3%)
+    South      : ₹ 469,403,207  (22.9%)
+    East       : ₹ 433,231,396  (21.1%)
+    West       : ₹ 403,896,192  (19.7%)
+    Central    : ₹ 224,683,140  (11.0%)
+
+[STEP 13] Exporting cleaned data...
+  ✓ Saved: ecommerce_cleaned.csv
+    Path  : C:\Users\DELL\OneDrive\Documents\4AL23CS007\project1\ecommerce-sales-customer-analytics\data\cleaned\ecommerce_cleaned.csv
+    Size  : 22.0 MB
+    Rows  : 83,603
+    Cols  : 36
