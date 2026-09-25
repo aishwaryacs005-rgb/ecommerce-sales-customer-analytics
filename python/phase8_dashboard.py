@@ -1,79 +1,88 @@
 """
-phase8_dashboard.py
---------------------
-Phase 8 — Interactive HTML Dashboard
-
-Builds a fully self-contained interactive dashboard HTML file
-that replicates the 4-page Power BI design using Plotly.
-
+phase8_dashboard.py  —  Professional Interactive Dashboard
 Output: powerbi/ecommerce_dashboard.html
-
-Open in any browser — no server, no login, no install needed.
 """
 
 import pandas as pd
 import numpy as np
-import os
+import os, json, warnings
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-import warnings
+
 warnings.filterwarnings("ignore")
 
-# ── Paths ────────────────────────────────────────────────
-BASE    = os.path.join(os.path.dirname(__file__), "..")
-CLEAN   = os.path.join(BASE, "data", "cleaned", "ecommerce_cleaned.csv")
-RFM     = os.path.join(BASE, "data", "cleaned", "rfm_segments.csv")
-RAW     = os.path.join(BASE, "data", "raw")
-OUT     = os.path.join(BASE, "powerbi", "ecommerce_dashboard.html")
+BASE  = os.path.join(os.path.dirname(__file__), "..")
+CLEAN = os.path.join(BASE, "data", "cleaned", "ecommerce_cleaned.csv")
+RFM   = os.path.join(BASE, "data", "cleaned", "rfm_segments.csv")
+RAW   = os.path.join(BASE, "data", "raw")
+OUT   = os.path.join(BASE, "powerbi", "ecommerce_dashboard.html")
 
-print("=" * 60)
-print("  Building Interactive HTML Dashboard")
-print("=" * 60)
-
-# ── Load data ────────────────────────────────────────────
+print("Loading data...")
 df  = pd.read_csv(CLEAN, parse_dates=["Order_Date"])
 rfm = pd.read_csv(RFM)
-products_df = pd.read_csv(os.path.join(RAW, "products.csv"))
+cust_raw = pd.read_csv(os.path.join(RAW, "customers.csv"))
 
-# ── Color palette ────────────────────────────────────────
-C_BLUE    = "#2E75B6"
-C_GREEN   = "#2D7D46"
-C_ORANGE  = "#E67E22"
-C_RED     = "#C0392B"
-C_PURPLE  = "#7D3C98"
-C_TEAL    = "#1A7F7A"
-C_GREY    = "#95A5A6"
-BG        = "#F5F7FA"
-CARD_BG   = "#FFFFFF"
-HDR_BG    = "#1F3864"
+# ── palette ─────────────────────────────────────────────
+TEAL   = "#00D4AA"
+BLUE   = "#4A9EFF"
+ORANGE = "#FFB347"
+RED    = "#FF6B6B"
+PURPLE = "#A855F7"
+YELLOW = "#F59E0B"
+GREEN  = "#10B981"
+PAL    = [TEAL, BLUE, ORANGE, RED, PURPLE, YELLOW, GREEN]
 
-PALETTE   = [C_BLUE, C_GREEN, C_ORANGE, C_RED, C_PURPLE, C_TEAL, C_GREY]
+PAPER  = "rgba(0,0,0,0)"
+PLOT   = "rgba(0,0,0,0)"
+FONT_C = "#E8F0FE"
+GRID_C = "rgba(136,153,170,0.12)"
+CARD   = "#112233"
 
-SEG_COLORS = {
-    "Champions":       "#27AE60",
-    "Loyal Customers": "#2980B9",
-    "At Risk":         "#F39C12",
-    "Hibernating":     "#E74C3C",
-    "Lost":            "#7F8C8D",
-}
+BASE_LAYOUT = dict(
+    paper_bgcolor=PAPER, plot_bgcolor=PLOT,
+    font=dict(family="Inter, Segoe UI, Arial", size=11, color=FONT_C),
+    margin=dict(l=10, r=10, t=46, b=10),
+    title_font=dict(size=13, color=FONT_C),
+    legend=dict(font=dict(color=FONT_C), bgcolor="rgba(0,0,0,0)"),
+    xaxis=dict(gridcolor=GRID_C, zerolinecolor=GRID_C,
+               tickfont=dict(color="#8899AA"), title_font=dict(color="#8899AA")),
+    yaxis=dict(gridcolor=GRID_C, zerolinecolor=GRID_C,
+               tickfont=dict(color="#8899AA"), title_font=dict(color="#8899AA")),
+)
 
-# ── KPIs ─────────────────────────────────────────────────
-total_sales   = df["Sales"].sum()
-total_profit  = df["Profit"].sum()
-total_orders  = df["Order_ID"].nunique()
-total_cust    = df["Customer_ID"].nunique()
-aov           = total_sales / total_orders
-margin        = total_profit / total_sales * 100
-total_qty     = df["Quantity"].sum()
-cancel_rate   = df[df["Order_Status"]=="Cancelled"]["Order_ID"].nunique() / total_orders * 100
-deliver_rate  = df[df["Order_Status"]=="Delivered"]["Order_ID"].nunique() / total_orders * 100
+MCFG = {"displayModeBar": False}
 
-# ── Aggregations ─────────────────────────────────────────
+def fig2html(fig, div_id=""):
+    return fig.to_html(full_html=False, include_plotlyjs=False,
+                       div_id=div_id, config=MCFG)
+
+def apply(fig, **extra):
+    layout = {**BASE_LAYOUT, **extra}
+    fig.update_layout(**layout)
+    return fig
+
+print("Computing aggregations...")
+
+# ── KPIs ────────────────────────────────────────────────
+ts   = df["Sales"].sum()
+tp   = df["Profit"].sum()
+tc   = df["Cost"].sum()
+to   = df["Order_ID"].nunique()
+tcu  = df["Customer_ID"].nunique()
+tq   = df["Quantity"].sum()
+aov  = ts / to
+mgn  = tp / ts * 100
+delr = df[df["Order_Status"]=="Delivered"]["Order_ID"].nunique() / to * 100
+canr = df[df["Order_Status"]=="Cancelled"]["Order_ID"].nunique() / to * 100
+retr = df[df["Customer_Type"]=="Returning"]["Customer_ID"].nunique() / tcu * 100
+
+# ── Aggregations ────────────────────────────────────────
 monthly = (df.groupby("Order_YearMonth", as_index=False)
            .agg(Sales=("Sales","sum"), Profit=("Profit","sum"),
                 Orders=("Order_ID","nunique"))
            .sort_values("Order_YearMonth"))
+monthly["Margin"] = (monthly["Profit"]/monthly["Sales"]*100).round(1)
 
 cat = (df.groupby("Category", as_index=False)
        .agg(Sales=("Sales","sum"), Profit=("Profit","sum"))
@@ -85,19 +94,16 @@ region = (df.groupby("Region", as_index=False)
                Orders=("Order_ID","nunique"))
           .sort_values("Sales", ascending=False))
 
-pay = (df.groupby("Payment_Mode")["Order_ID"]
-       .nunique().reset_index()
-       .rename(columns={"Order_ID":"Count"})
+pay = (df.groupby("Payment_Mode")["Order_ID"].nunique()
+       .reset_index().rename(columns={"Order_ID":"Count"})
        .sort_values("Count", ascending=False))
 
-status = (df.groupby("Order_Status")["Order_ID"]
-          .nunique().reset_index()
-          .rename(columns={"Order_ID":"Count"})
+status = (df.groupby("Order_Status")["Order_ID"].nunique()
+          .reset_index().rename(columns={"Order_ID":"Count"})
           .sort_values("Count", ascending=False))
 
 top10 = (df.groupby("Product_Name", as_index=False)
-         .agg(Sales=("Sales","sum"), Profit=("Profit","sum"),
-              Qty=("Quantity","sum"))
+         .agg(Sales=("Sales","sum"), Profit=("Profit","sum"), Qty=("Quantity","sum"))
          .nlargest(10,"Sales").sort_values("Sales"))
 top10["Margin"] = (top10["Profit"]/top10["Sales"]*100).round(1)
 
@@ -105,15 +111,18 @@ bot10 = (df.groupby("Product_Name", as_index=False)
          .agg(Sales=("Sales","sum"), Profit=("Profit","sum"))
          .nsmallest(10,"Sales").sort_values("Sales", ascending=False))
 
-sub_cat = (df.groupby(["Category","Sub_Category"], as_index=False)
-           .agg(Sales=("Sales","sum"), Profit=("Profit","sum"))
-           .sort_values("Sales", ascending=False).head(15))
+sub = (df.groupby(["Category","Sub_Category"], as_index=False)
+       .agg(Sales=("Sales","sum"))
+       .sort_values("Sales", ascending=False).head(16))
 
-age_grp_order = ["18–25","26–35","36–45","46–55","56+"]
+prod_grp = (df.groupby(["Product_Name","Category"], as_index=False)
+            .agg(Sales=("Sales","sum"), Profit=("Profit","sum"), Qty=("Quantity","sum")))
+
+age_order = ["18–25","26–35","36–45","46–55","56+"]
 age = (df.groupby("Age_Group", as_index=False)
        .agg(Sales=("Sales","sum"), Customers=("Customer_ID","nunique"))
        .assign(Age_Group=lambda x: pd.Categorical(
-           x["Age_Group"], categories=age_grp_order, ordered=True))
+           x["Age_Group"], categories=age_order, ordered=True))
        .sort_values("Age_Group"))
 
 ctype = (df.groupby("Customer_Type", as_index=False)
@@ -121,671 +130,796 @@ ctype = (df.groupby("Customer_Type", as_index=False)
               Customers=("Customer_ID","nunique")))
 ctype["AOV"] = (ctype["Sales"]/ctype["Orders"]).round(0)
 
-seg_summary = (rfm.groupby("Segment", as_index=False)
-               .agg(Count=("Customer_ID","count"),
-                    Revenue=("Monetary","sum"),
-                    AvgSpend=("Monetary","mean"))
-               .sort_values("Revenue", ascending=False))
+seg_order = ["Champions","Loyal Customers","At Risk","Hibernating","Lost"]
+SEG_C = {"Champions":TEAL,"Loyal Customers":BLUE,"At Risk":ORANGE,
+          "Hibernating":RED,"Lost":"#8899AA"}
+seg = (rfm.groupby("Segment", as_index=False)
+       .agg(Count=("Customer_ID","count"), Revenue=("Monetary","sum"),
+            AvgSpend=("Monetary","mean"))
+       .assign(Segment=lambda x: pd.Categorical(
+           x["Segment"], categories=seg_order, ordered=True))
+       .sort_values("Segment"))
 
-top_cust = (df.groupby(["Customer_ID"], as_index=False)
+top_cust = (df.groupby("Customer_ID", as_index=False)
             .agg(Sales=("Sales","sum"), Orders=("Order_ID","nunique"))
-            .nlargest(15,"Sales"))
-top_cust = top_cust.merge(
-    pd.read_csv(os.path.join(RAW,"customers.csv"))[["Customer_ID","Customer_Name","Region","Customer_Type"]],
-    on="Customer_ID")
+            .nlargest(15,"Sales")
+            .merge(cust_raw[["Customer_ID","Customer_Name","Region","Customer_Type"]],
+                   on="Customer_ID")
+            .sort_values("Sales"))
 
-state_sales = (df.groupby(["State","Region"], as_index=False)
-               .agg(Sales=("Sales","sum"), Orders=("Order_ID","nunique"))
-               .sort_values("Sales", ascending=False))
+state_s = (df.groupby(["State","Region"], as_index=False)
+           .agg(Sales=("Sales","sum"), Orders=("Order_ID","nunique"))
+           .sort_values("Sales", ascending=False).head(15)
+           .sort_values("Sales"))
 
 cat_reg = (df.groupby(["Category","Region"])["Sales"]
            .sum().unstack(fill_value=0)/1e7)
 
-season = (df.groupby("Season", as_index=False)
-          .agg(Sales=("Sales","sum"), Orders=("Order_ID","nunique"))
-          .sort_values("Sales", ascending=False))
+season_order = ["Festive Season","New Year Sales","Summer","Monsoon"]
+seas = (df.groupby("Season", as_index=False)
+        .agg(Sales=("Sales","sum"), Orders=("Order_ID","nunique")))
+seas["Pct"] = (seas["Sales"]/ts*100).round(1)
 
-quarterly = (df.groupby(["Order_Year","Order_Quarter"], as_index=False)
-             .agg(Sales=("Sales","sum"), Profit=("Profit","sum")))
-quarterly["Label"] = quarterly["Order_Year"].astype(str) + " Q" + quarterly["Order_Quarter"].astype(str)
+qtr = (df.groupby(["Order_Year","Order_Quarter"], as_index=False)
+       .agg(Sales=("Sales","sum"), Profit=("Profit","sum")))
+qtr["Label"] = qtr["Order_Year"].astype(str)+" Q"+qtr["Order_Quarter"].astype(str)
 
-print("  Data loaded and aggregated")
+print("Building charts...")
 
-# ═════════════════════════════════════════════════════════
-# BUILD FIGURES
-# ═════════════════════════════════════════════════════════
-print("  Building charts...")
+# ════════════════════════════════════════════════════════
+# PAGE 1 CHARTS
+# ════════════════════════════════════════════════════════
 
-def fmt_cr(v): return f"₹{v/1e7:.1f}Cr"
-def fmt_l(v):  return f"₹{v/1e5:.1f}L"
-
-layout_base = dict(
-    paper_bgcolor=BG, plot_bgcolor=BG,
-    font=dict(family="Segoe UI, Arial", size=11, color="#2C3E50"),
-    margin=dict(l=40, r=20, t=50, b=40),
-    title_font=dict(size=13, color=HDR_BG),
-)
-
-# ── P1: Monthly trend ────────────────────────────────────
-fig_monthly = go.Figure()
-fig_monthly.add_trace(go.Scatter(
-    x=monthly["Order_YearMonth"].astype(str), y=monthly["Sales"]/1e7,
-    name="Sales", line=dict(color=C_BLUE, width=2.5),
-    fill="tozeroy", fillcolor="rgba(46,117,182,0.08)",
+# Monthly trend
+f_monthly = go.Figure()
+x_labels  = monthly["Order_YearMonth"].astype(str).tolist()
+f_monthly.add_trace(go.Scatter(
+    x=x_labels, y=monthly["Sales"]/1e7, name="Sales",
+    line=dict(color=TEAL, width=2.5, shape="spline"),
+    fill="tozeroy", fillcolor="rgba(0,212,170,0.07)",
     hovertemplate="<b>%{x}</b><br>Sales: ₹%{y:.1f}Cr<extra></extra>"))
-fig_monthly.add_trace(go.Scatter(
-    x=monthly["Order_YearMonth"].astype(str), y=monthly["Profit"]/1e7,
-    name="Profit", line=dict(color=C_GREEN, width=2),
-    fill="tozeroy", fillcolor="rgba(45,125,70,0.08)",
+f_monthly.add_trace(go.Scatter(
+    x=x_labels, y=monthly["Profit"]/1e7, name="Profit",
+    line=dict(color=BLUE, width=2, shape="spline", dash="dot"),
+    fill="tozeroy", fillcolor="rgba(74,158,255,0.05)",
     hovertemplate="<b>%{x}</b><br>Profit: ₹%{y:.1f}Cr<extra></extra>"))
-month_labels = monthly["Order_YearMonth"].astype(str).tolist()
-for yr_start in ["2023-01","2024-01"]:
-    if yr_start in month_labels:
-        idx = month_labels.index(yr_start)
-        fig_monthly.add_shape(type="line",
-            x0=idx, x1=idx, y0=0, y1=1, yref="paper",
-            line=dict(dash="dot", color=C_GREY, width=1.2))
-        fig_monthly.add_annotation(x=idx, y=1, yref="paper",
-            text=yr_start[:4], showarrow=False, font=dict(size=9, color=C_GREY))
-fig_monthly.update_layout(**layout_base,
-    title="Monthly Sales & Profit Trend (2022–2024)",
-    xaxis=dict(tickangle=-45, tickfont_size=8),
-    yaxis=dict(title="₹ Crores", tickprefix="₹", ticksuffix="Cr"),
-    legend=dict(orientation="h", y=1.1),
-    height=340)
+for yr in ["2023-01","2024-01"]:
+    if yr in x_labels:
+        i = x_labels.index(yr)
+        f_monthly.add_shape(type="line", x0=i, x1=i, y0=0, y1=1,
+            yref="paper", line=dict(color="rgba(255,255,255,0.15)", width=1, dash="dot"))
+        f_monthly.add_annotation(x=i, y=0.97, yref="paper",
+            text=yr[:4], showarrow=False,
+            font=dict(size=9, color="#8899AA"))
+apply(f_monthly, title="Monthly Sales & Profit Trend (Jan 2022 – Dec 2024)",
+      height=320, legend=dict(orientation="h", y=1.12, x=0),
+      xaxis=dict(tickangle=-40, tickfont=dict(size=8, color="#8899AA"),
+                 gridcolor=GRID_C, zerolinecolor=GRID_C),
+      yaxis=dict(title="₹ Crores", tickprefix="₹",
+                 gridcolor=GRID_C, zerolinecolor=GRID_C,
+                 tickfont=dict(color="#8899AA")))
 
-# ── P1: Sales by Category ────────────────────────────────
-fig_cat_bar = go.Figure(go.Bar(
-    x=cat["Sales"]/1e7, y=cat["Category"],
-    orientation="h",
-    marker=dict(color=[C_BLUE if i==0 else PALETTE[i%len(PALETTE)]
-                       for i in range(len(cat))],
-                line=dict(color="white", width=0.5)),
-    text=[fmt_cr(v) for v in cat["Sales"]],
-    textposition="outside",
-    hovertemplate="<b>%{y}</b><br>Sales: ₹%{x:.1f}Cr<extra></extra>"))
-fig_cat_bar.update_layout(**layout_base,
-    title="Sales by Category",
-    xaxis=dict(title="₹ Crores"), yaxis=dict(autorange="reversed"),
-    height=300)
+# Category bar
+f_cat = go.Figure(go.Bar(
+    x=cat["Sales"]/1e7, y=cat["Category"], orientation="h",
+    marker=dict(
+        color=cat["Sales"]/1e7,
+        colorscale=[[0,"#112233"],[0.3,BLUE],[1,TEAL]],
+        line=dict(width=0)),
+    text=[f"₹{v/1e7:.1f}Cr" for v in cat["Sales"]],
+    textposition="outside", textfont=dict(color="#8899AA", size=9),
+    hovertemplate="<b>%{y}</b><br>₹%{x:.1f}Cr<extra></extra>"))
+apply(f_cat, title="Sales by Category", height=280,
+      xaxis=dict(title="₹ Crores", gridcolor=GRID_C, zerolinecolor=GRID_C,
+                 tickfont=dict(color="#8899AA")),
+      yaxis=dict(autorange="reversed", gridcolor=GRID_C,
+                 tickfont=dict(color=FONT_C, size=10)))
 
-# ── P1: Sales by Region ──────────────────────────────────
-fig_reg_col = go.Figure()
-fig_reg_col.add_trace(go.Bar(
-    x=region["Region"], y=region["Sales"]/1e7,
-    name="Sales", marker_color=C_BLUE,
-    text=[fmt_cr(v) for v in region["Sales"]], textposition="outside",
-    hovertemplate="<b>%{x}</b><br>Sales: ₹%{y:.1f}Cr<extra></extra>"))
-fig_reg_col.add_trace(go.Bar(
-    x=region["Region"], y=region["Profit"]/1e7,
-    name="Profit", marker_color=C_GREEN,
-    text=[fmt_cr(v) for v in region["Profit"]], textposition="outside",
-    hovertemplate="<b>%{x}</b><br>Profit: ₹%{y:.1f}Cr<extra></extra>"))
-fig_reg_col.update_layout(**layout_base,
-    title="Sales & Profit by Region", barmode="group",
-    yaxis=dict(title="₹ Crores"), legend=dict(orientation="h", y=1.1),
-    height=300)
+# Region grouped bar
+f_reg = go.Figure()
+f_reg.add_trace(go.Bar(name="Sales", x=region["Region"],
+    y=region["Sales"]/1e7, marker_color=TEAL, opacity=0.9,
+    text=[f"₹{v/1e7:.0f}Cr" for v in region["Sales"]],
+    textposition="outside", textfont=dict(size=8.5, color="#8899AA")))
+f_reg.add_trace(go.Bar(name="Profit", x=region["Region"],
+    y=region["Profit"]/1e7, marker_color=BLUE, opacity=0.9,
+    text=[f"₹{v/1e7:.0f}Cr" for v in region["Profit"]],
+    textposition="outside", textfont=dict(size=8.5, color="#8899AA")))
+apply(f_reg, title="Sales & Profit by Region", barmode="group", height=280,
+      legend=dict(orientation="h", y=1.12),
+      yaxis=dict(title="₹ Crores", gridcolor=GRID_C, zerolinecolor=GRID_C,
+                 tickfont=dict(color="#8899AA")),
+      xaxis=dict(tickfont=dict(color=FONT_C)))
 
-# ── P1: Order Status ─────────────────────────────────────
-status_colors = {"Delivered":C_GREEN,"Shipped":C_BLUE,
-                 "Cancelled":C_RED,"Returned":C_ORANGE,"Processing":C_TEAL}
-fig_status = go.Figure(go.Pie(
-    labels=status["Order_Status"], values=status["Count"],
-    hole=0.45,
-    marker_colors=[status_colors.get(s,C_GREY) for s in status["Order_Status"]],
-    textinfo="label+percent",
-    hovertemplate="<b>%{label}</b><br>Orders: %{value:,}<br>Share: %{percent}<extra></extra>"))
-fig_status.update_layout(**layout_base, title="Order Status Distribution",
-    legend=dict(orientation="h", y=-0.15), height=300)
+# Order status donut
+st_colors = {"Delivered":TEAL,"Shipped":BLUE,"Cancelled":RED,
+             "Returned":ORANGE,"Processing":PURPLE}
+f_status = go.Figure(go.Pie(
+    labels=status["Order_Status"], values=status["Count"], hole=0.6,
+    marker=dict(colors=[st_colors.get(s,"#8899AA") for s in status["Order_Status"]],
+                line=dict(color="#0D1B2A", width=2)),
+    textinfo="percent", textfont=dict(size=10, color=FONT_C),
+    hovertemplate="<b>%{label}</b><br>%{value:,} orders (%{percent})<extra></extra>"))
+f_status.add_annotation(text=f"<b>{to:,}</b><br><span style='font-size:10px'>Orders</span>",
+    x=0.5, y=0.5, showarrow=False, font=dict(size=14, color=FONT_C))
+apply(f_status, title="Order Status", height=300,
+      legend=dict(orientation="v", x=1.01, y=0.5))
 
-# ── P1: Payment Mode ─────────────────────────────────────
-fig_pay = go.Figure(go.Pie(
-    labels=pay["Payment_Mode"], values=pay["Count"],
-    hole=0.45,
-    marker_colors=PALETTE[:len(pay)],
-    textinfo="label+percent",
-    hovertemplate="<b>%{label}</b><br>Orders: %{value:,}<extra></extra>"))
-fig_pay.update_layout(**layout_base, title="Payment Mode Distribution",
-    legend=dict(orientation="h", y=-0.2), height=300)
+# Payment donut
+f_pay = go.Figure(go.Pie(
+    labels=pay["Payment_Mode"], values=pay["Count"], hole=0.6,
+    marker=dict(colors=PAL[:len(pay)],
+                line=dict(color="#0D1B2A", width=2)),
+    textinfo="percent", textfont=dict(size=10, color=FONT_C),
+    hovertemplate="<b>%{label}</b><br>%{value:,} orders (%{percent})<extra></extra>"))
+f_pay.add_annotation(text=f"<b>{pay['Count'].iloc[0]:,}</b><br><span style='font-size:9px'>UPI (Top)</span>",
+    x=0.5, y=0.5, showarrow=False, font=dict(size=13, color=FONT_C))
+apply(f_pay, title="Payment Mode", height=300,
+      legend=dict(orientation="v", x=1.01, y=0.5))
 
-# ── P2: Top 10 Products ──────────────────────────────────
-fig_top10 = go.Figure()
-fig_top10.add_trace(go.Bar(
-    y=top10["Product_Name"], x=top10["Sales"]/1e5,
-    name="Sales", orientation="h", marker_color=C_BLUE,
-    text=[fmt_l(v) for v in top10["Sales"]], textposition="outside",
-    hovertemplate="<b>%{y}</b><br>Sales: ₹%{x:.0f}L<br>Margin: "
-                  + top10["Margin"].astype(str) + "%<extra></extra>"))
-fig_top10.update_layout(**layout_base, title="Top 10 Products by Sales",
-    xaxis=dict(title="₹ Lakhs"), yaxis=dict(autorange="reversed"),
-    height=380)
+# ════════════════════════════════════════════════════════
+# PAGE 2 CHARTS
+# ════════════════════════════════════════════════════════
 
-# ── P2: Bottom 10 Products ───────────────────────────────
-fig_bot10 = go.Figure(go.Bar(
-    y=bot10["Product_Name"], x=bot10["Sales"]/1e5,
-    orientation="h", marker_color=C_RED,
-    text=[fmt_l(v) for v in bot10["Sales"]], textposition="outside"))
-fig_bot10.update_layout(**layout_base,
-    title="Bottom 10 Products (Lowest Revenue)",
-    xaxis=dict(title="₹ Lakhs"), yaxis=dict(autorange="reversed"),
-    height=380)
-
-# ── P2: Sub-Category ────────────────────────────────────
-fig_subcat = go.Figure()
-for i, cat_name in enumerate(sub_cat["Category"].unique()):
-    grp = sub_cat[sub_cat["Category"]==cat_name]
-    fig_subcat.add_trace(go.Bar(
-        x=grp["Sub_Category"], y=grp["Sales"]/1e7,
-        name=cat_name, marker_color=PALETTE[i % len(PALETTE)]))
-fig_subcat.update_layout(**layout_base,
-    title="Sub-Category Sales Performance",
-    barmode="stack", xaxis_tickangle=-30,
-    yaxis=dict(title="₹ Crores"),
-    legend=dict(orientation="h", y=1.1), height=360)
-
-# ── P2: Sales vs Profit Scatter ──────────────────────────
-prod_grp = (df.groupby(["Product_Name","Category"], as_index=False)
-            .agg(Sales=("Sales","sum"), Profit=("Profit","sum"),
-                 Qty=("Quantity","sum")))
-fig_scatter = px.scatter(
-    prod_grp, x="Sales", y="Profit", size="Qty", color="Category",
-    hover_name="Product_Name", color_discrete_sequence=PALETTE,
-    labels={"Sales":"Total Sales (₹)","Profit":"Total Profit (₹)"},
-    title="Sales vs Profit by Product (bubble = qty sold)")
-fig_scatter.update_layout(**layout_base, height=400)
-fig_scatter.update_traces(marker=dict(opacity=0.7, line=dict(width=0.3, color="white")))
-
-# ── P3: RFM Segments ─────────────────────────────────────
-seg_order = ["Champions","Loyal Customers","At Risk","Hibernating","Lost"]
-seg_plot = seg_summary.set_index("Segment").reindex(seg_order).dropna().reset_index()
-
-fig_rfm_donut = go.Figure(go.Pie(
-    labels=seg_plot["Segment"], values=seg_plot["Count"],
-    hole=0.5,
-    marker_colors=[SEG_COLORS[s] for s in seg_plot["Segment"]],
-    textinfo="label+percent",
-    hovertemplate="<b>%{label}</b><br>Customers: %{value:,}<extra></extra>"))
-fig_rfm_donut.update_layout(**layout_base, title="RFM Customer Segments",
-    legend=dict(orientation="h", y=-0.2), height=340)
-
-fig_rfm_rev = go.Figure(go.Bar(
-    y=seg_plot["Segment"], x=seg_plot["Revenue"]/1e7,
-    orientation="h",
-    marker_color=[SEG_COLORS[s] for s in seg_plot["Segment"]],
-    text=[fmt_cr(v) for v in seg_plot["Revenue"]], textposition="outside",
-    hovertemplate="<b>%{y}</b><br>Revenue: ₹%{x:.1f}Cr<extra></extra>"))
-fig_rfm_rev.update_layout(**layout_base,
-    title="Revenue by RFM Segment",
-    xaxis=dict(title="₹ Crores"), height=340)
-
-# ── P3: New vs Returning ─────────────────────────────────
-fig_ctype = make_subplots(rows=1, cols=2,
-    subplot_titles=("Revenue by Customer Type","Orders by Customer Type"))
-for i, (col, div, label) in enumerate([("Sales",1e7,"₹ Crores"),("Orders",1,"Orders")]):
-    fig_ctype.add_trace(go.Bar(
-        x=ctype["Customer_Type"], y=ctype[col]/div,
-        marker_color=[C_BLUE, C_GREEN],
-        text=[f"₹{v/div:.1f}Cr" if col=="Sales" else f"{int(v/div):,}"
-              for v in ctype[col]],
-        textposition="outside", showlegend=False), row=1, col=i+1)
-fig_ctype.update_layout(**layout_base, title="New vs Returning Customer Comparison",
-    height=320)
-
-# ── P3: Age Group ────────────────────────────────────────
-fig_age = go.Figure(go.Bar(
-    x=age["Age_Group"].astype(str), y=age["Sales"]/1e7,
-    marker_color=PALETTE[:len(age)],
-    text=[fmt_cr(v) for v in age["Sales"]], textposition="outside"))
-fig_age.update_layout(**layout_base, title="Revenue by Customer Age Group",
-    yaxis=dict(title="₹ Crores"), height=300)
-
-# ── P3: Top 15 Customers ─────────────────────────────────
-fig_top_cust = go.Figure(go.Bar(
-    y=top_cust["Customer_Name"] + " (" + top_cust["Region"] + ")",
-    x=top_cust["Sales"]/1e5,
-    orientation="h",
-    marker_color=[C_GREEN if t=="Returning" else C_ORANGE
-                  for t in top_cust["Customer_Type"]],
-    text=[fmt_l(v) for v in top_cust["Sales"]], textposition="outside",
+f_top10 = go.Figure(go.Bar(
+    y=top10["Product_Name"], x=top10["Sales"]/1e5, orientation="h",
+    marker=dict(color=top10["Sales"]/1e5,
+                colorscale=[[0,BLUE],[1,TEAL]],
+                line=dict(width=0)),
+    text=[f"₹{v/1e5:.0f}L  {m:.0f}%" for v,m in zip(top10["Sales"],top10["Margin"])],
+    textposition="outside", textfont=dict(size=8.5, color="#8899AA"),
     hovertemplate="<b>%{y}</b><br>Sales: ₹%{x:.0f}L<extra></extra>"))
-fig_top_cust.update_layout(**layout_base,
-    title="Top 15 Customers by Spending (Green=Returning, Orange=New)",
-    xaxis=dict(title="₹ Lakhs"), yaxis=dict(autorange="reversed"),
-    height=480)
+apply(f_top10, title="Top 10 Products by Revenue", height=380,
+      xaxis=dict(title="₹ Lakhs", gridcolor=GRID_C, zerolinecolor=GRID_C,
+                 tickfont=dict(color="#8899AA")),
+      yaxis=dict(autorange="reversed", tickfont=dict(color=FONT_C, size=9.5)))
 
-# ── P4: State performance ────────────────────────────────
-top_states = state_sales.head(15).sort_values("Sales")
-fig_states = go.Figure(go.Bar(
-    y=top_states["State"] + " (" + top_states["Region"] + ")",
-    x=top_states["Sales"]/1e7,
-    orientation="h",
-    marker_color=[{"North":C_BLUE,"South":C_GREEN,"East":C_ORANGE,
-                   "West":C_PURPLE,"Central":C_TEAL}.get(r,C_GREY)
-                  for r in top_states["Region"]],
-    text=[fmt_cr(v) for v in top_states["Sales"]], textposition="outside"))
-fig_states.update_layout(**layout_base,
-    title="Top 15 States by Revenue (color = region)",
-    xaxis=dict(title="₹ Crores"), height=460)
+f_bot10 = go.Figure(go.Bar(
+    y=bot10["Product_Name"], x=bot10["Sales"]/1e5, orientation="h",
+    marker=dict(color=bot10["Sales"]/1e5,
+                colorscale=[[0,RED],[1,ORANGE]],
+                reversescale=True, line=dict(width=0)),
+    text=[f"₹{v/1e5:.2f}L" for v in bot10["Sales"]],
+    textposition="outside", textfont=dict(size=8.5, color="#8899AA"),
+    hovertemplate="<b>%{y}</b><br>Sales: ₹%{x:.2f}L<extra></extra>"))
+apply(f_bot10, title="Bottom 10 Products (Lowest Revenue)", height=380,
+      xaxis=dict(title="₹ Lakhs", gridcolor=GRID_C, zerolinecolor=GRID_C,
+                 tickfont=dict(color="#8899AA")),
+      yaxis=dict(tickfont=dict(color=FONT_C, size=9.5)))
 
-# ── P4: Category × Region Heatmap ───────────────────────
-fig_heatmap = go.Figure(go.Heatmap(
-    z=cat_reg.values,
-    x=cat_reg.columns.tolist(),
-    y=cat_reg.index.tolist(),
-    colorscale="Blues",
+f_sub = go.Figure()
+cat_names = sub["Category"].unique()
+for i, cn in enumerate(cat_names):
+    g = sub[sub["Category"]==cn]
+    f_sub.add_trace(go.Bar(
+        x=g["Sub_Category"], y=g["Sales"]/1e7,
+        name=cn, marker_color=PAL[i % len(PAL)], opacity=0.9))
+apply(f_sub, title="Sub-Category Revenue Breakdown", barmode="group",
+      height=340, xaxis=dict(tickangle=-30, tickfont=dict(color=FONT_C, size=8.5),
+                             gridcolor=GRID_C),
+      yaxis=dict(title="₹ Crores", gridcolor=GRID_C, tickfont=dict(color="#8899AA")),
+      legend=dict(orientation="h", y=1.12))
+
+f_scatter = px.scatter(prod_grp, x="Sales", y="Profit", size="Qty", color="Category",
+    hover_name="Product_Name", color_discrete_sequence=PAL,
+    labels={"Sales":"Total Sales (₹)","Profit":"Total Profit (₹)"},
+    title="Sales vs Profit by Product  (bubble = units sold)")
+f_scatter.update_traces(marker=dict(opacity=0.75, line=dict(width=0.5, color="#0D1B2A"),
+                                    sizemin=4))
+apply(f_scatter, height=400,
+      xaxis=dict(gridcolor=GRID_C, zerolinecolor=GRID_C, tickfont=dict(color="#8899AA")),
+      yaxis=dict(gridcolor=GRID_C, zerolinecolor=GRID_C, tickfont=dict(color="#8899AA")))
+
+# ════════════════════════════════════════════════════════
+# PAGE 3 CHARTS
+# ════════════════════════════════════════════════════════
+
+seg_clean = seg.dropna(subset=["Segment"]).reset_index(drop=True)
+
+f_rfm_donut = go.Figure(go.Pie(
+    labels=seg_clean["Segment"], values=seg_clean["Count"], hole=0.58,
+    marker=dict(colors=[SEG_C.get(s,BLUE) for s in seg_clean["Segment"]],
+                line=dict(color="#0D1B2A", width=2)),
+    textinfo="percent+label", textfont=dict(size=9.5, color=FONT_C),
+    hovertemplate="<b>%{label}</b><br>%{value:,} customers (%{percent})<extra></extra>"))
+f_rfm_donut.add_annotation(
+    text=f"<b>{len(rfm):,}</b><br><span>Customers</span>",
+    x=0.5, y=0.5, showarrow=False, font=dict(size=13, color=FONT_C))
+apply(f_rfm_donut, title="RFM Customer Segments", height=340,
+      legend=dict(orientation="v", x=1.02, y=0.5))
+
+f_rfm_rev = go.Figure(go.Bar(
+    y=seg_clean["Segment"], x=seg_clean["Revenue"]/1e7, orientation="h",
+    marker=dict(color=[SEG_C.get(s,BLUE) for s in seg_clean["Segment"]],
+                line=dict(width=0), opacity=0.9),
+    text=[f"₹{v/1e7:.1f}Cr" for v in seg_clean["Revenue"]],
+    textposition="outside", textfont=dict(size=9, color="#8899AA")))
+apply(f_rfm_rev, title="Revenue by RFM Segment", height=340,
+      xaxis=dict(title="₹ Crores", gridcolor=GRID_C, zerolinecolor=GRID_C,
+                 tickfont=dict(color="#8899AA")),
+      yaxis=dict(tickfont=dict(color=FONT_C), autorange="reversed"))
+
+f_ctype = make_subplots(rows=1, cols=2,
+    subplot_titles=["Revenue by Type","Orders by Type"])
+for row in ctype.itertuples():
+    clr = TEAL if row.Customer_Type == "Returning" else BLUE
+    f_ctype.add_trace(go.Bar(
+        x=[row.Customer_Type], y=[row.Sales/1e7], name=row.Customer_Type,
+        marker_color=clr, showlegend=False,
+        text=[f"₹{row.Sales/1e7:.1f}Cr"], textposition="outside",
+        textfont=dict(size=10, color="#8899AA")), row=1, col=1)
+    f_ctype.add_trace(go.Bar(
+        x=[row.Customer_Type], y=[row.Orders], name=row.Customer_Type,
+        marker_color=clr, showlegend=False,
+        text=[f"{row.Orders:,}"], textposition="outside",
+        textfont=dict(size=10, color="#8899AA")), row=1, col=2)
+f_ctype.update_layout(**{**BASE_LAYOUT,
+    "title":"New vs Returning Customer Comparison","height":300,
+    "paper_bgcolor":PAPER,"plot_bgcolor":PLOT})
+f_ctype.update_xaxes(tickfont=dict(color=FONT_C))
+f_ctype.update_yaxes(gridcolor=GRID_C, zerolinecolor=GRID_C,
+                     tickfont=dict(color="#8899AA"))
+for ann in f_ctype.layout.annotations:
+    ann.font = dict(color="#8899AA", size=10)
+
+f_age = go.Figure(go.Bar(
+    x=age["Age_Group"].astype(str), y=age["Sales"]/1e7,
+    marker=dict(color=age["Sales"]/1e7,
+                colorscale=[[0,BLUE],[1,TEAL]], line=dict(width=0)),
+    text=[f"₹{v/1e7:.1f}Cr" for v in age["Sales"]],
+    textposition="outside", textfont=dict(size=9, color="#8899AA")))
+apply(f_age, title="Revenue by Customer Age Group", height=280,
+      xaxis=dict(tickfont=dict(color=FONT_C)),
+      yaxis=dict(title="₹ Crores", gridcolor=GRID_C, tickfont=dict(color="#8899AA")))
+
+f_top_cust = go.Figure(go.Bar(
+    y=top_cust["Customer_Name"]+" ("+top_cust["Region"]+")",
+    x=top_cust["Sales"]/1e5, orientation="h",
+    marker=dict(
+        color=[TEAL if t=="Returning" else ORANGE for t in top_cust["Customer_Type"]],
+        line=dict(width=0), opacity=0.9),
+    text=[f"₹{v/1e5:.0f}L" for v in top_cust["Sales"]],
+    textposition="outside", textfont=dict(size=8.5, color="#8899AA"),
+    hovertemplate="<b>%{y}</b><br>₹%{x:.0f}L<extra></extra>"))
+apply(f_top_cust, title="Top 15 Customers  (Teal=Returning · Orange=New)",
+      height=480,
+      xaxis=dict(title="₹ Lakhs", gridcolor=GRID_C, tickfont=dict(color="#8899AA")),
+      yaxis=dict(autorange="reversed", tickfont=dict(color=FONT_C, size=9)))
+
+# ════════════════════════════════════════════════════════
+# PAGE 4 CHARTS
+# ════════════════════════════════════════════════════════
+REG_C = {"North":TEAL,"South":BLUE,"East":ORANGE,"West":PURPLE,"Central":YELLOW}
+
+f_states = go.Figure(go.Bar(
+    y=state_s["State"]+" ("+state_s["Region"]+")",
+    x=state_s["Sales"]/1e7, orientation="h",
+    marker=dict(color=[REG_C.get(r,BLUE) for r in state_s["Region"]],
+                line=dict(width=0), opacity=0.9),
+    text=[f"₹{v/1e7:.1f}Cr" for v in state_s["Sales"]],
+    textposition="outside", textfont=dict(size=8.5, color="#8899AA")))
+apply(f_states, title="Top 15 States by Revenue (color = region)", height=480,
+      xaxis=dict(title="₹ Crores", gridcolor=GRID_C, tickfont=dict(color="#8899AA")),
+      yaxis=dict(autorange="reversed", tickfont=dict(color=FONT_C, size=9.5)))
+
+f_heat = go.Figure(go.Heatmap(
+    z=cat_reg.values, x=cat_reg.columns.tolist(), y=cat_reg.index.tolist(),
+    colorscale=[[0,"#0D1B2A"],[0.3,"#1A3A5C"],[0.7,BLUE],[1,TEAL]],
     text=[[f"₹{v:.1f}Cr" for v in row] for row in cat_reg.values],
-    texttemplate="%{text}",
-    hovertemplate="<b>%{y} × %{x}</b><br>Sales: %{text}<extra></extra>",
-    colorbar=dict(title="₹ Crores")))
-fig_heatmap.update_layout(**layout_base,
-    title="Sales by Category × Region (₹ Crores)",
-    xaxis=dict(side="bottom"), height=320)
+    texttemplate="%{text}", textfont=dict(size=9, color=FONT_C),
+    hovertemplate="<b>%{y} × %{x}</b><br>₹%{text}<extra></extra>",
+    colorbar=dict(tickfont=dict(color="#8899AA"), title=dict(text="₹Cr",font=dict(color="#8899AA")))))
+apply(f_heat, title="Sales Heatmap — Category × Region (₹ Crores)", height=320,
+      xaxis=dict(tickfont=dict(color=FONT_C, size=10), side="bottom"),
+      yaxis=dict(tickfont=dict(color=FONT_C, size=10)))
 
-# ── P4: Seasonal trend ───────────────────────────────────
-season_colors = {"Festive Season":C_ORANGE,"New Year Sales":C_BLUE,
-                 "Summer":C_RED,"Monsoon":C_TEAL}
-fig_season = go.Figure(go.Bar(
-    x=season["Season"], y=season["Sales"]/1e7,
-    marker_color=[season_colors.get(s,C_GREY) for s in season["Season"]],
-    text=[f"{fmt_cr(v)}<br>({v/total_sales*100:.1f}%)"
-          for v in season["Sales"]],
-    textposition="outside"))
-fig_season.update_layout(**layout_base,
-    title="Revenue by Season",
-    yaxis=dict(title="₹ Crores"), height=320)
+seas_c = {"Festive Season":ORANGE,"New Year Sales":TEAL,"Summer":RED,"Monsoon":BLUE}
+f_seas = go.Figure(go.Bar(
+    x=seas["Season"], y=seas["Sales"]/1e7,
+    marker=dict(color=[seas_c.get(s,BLUE) for s in seas["Season"]],
+                line=dict(width=0)),
+    text=[f"₹{v/1e7:.1f}Cr<br>({p:.1f}%)" for v,p in zip(seas["Sales"],seas["Pct"])],
+    textposition="outside", textfont=dict(size=9, color="#8899AA")))
+apply(f_seas, title="Revenue by Season", height=320,
+      xaxis=dict(tickfont=dict(color=FONT_C)),
+      yaxis=dict(title="₹ Crores", gridcolor=GRID_C, tickfont=dict(color="#8899AA")))
 
-# ── P4: Quarterly trend ──────────────────────────────────
-fig_quarterly = go.Figure()
-fig_quarterly.add_trace(go.Bar(
-    x=quarterly["Label"], y=quarterly["Sales"]/1e7,
-    name="Sales", marker_color=C_BLUE, opacity=0.85))
-fig_quarterly.add_trace(go.Bar(
-    x=quarterly["Label"], y=quarterly["Profit"]/1e7,
-    name="Profit", marker_color=C_GREEN, opacity=0.85))
-fig_quarterly.update_layout(**layout_base,
-    title="Quarterly Sales & Profit Trend",
-    barmode="group", xaxis_tickangle=-30,
-    yaxis=dict(title="₹ Crores"),
-    legend=dict(orientation="h", y=1.1), height=320)
+f_qtr = go.Figure()
+f_qtr.add_trace(go.Bar(x=qtr["Label"], y=qtr["Sales"]/1e7, name="Sales",
+    marker_color=TEAL, opacity=0.85,
+    text=[f"₹{v/1e7:.0f}Cr" for v in qtr["Sales"]],
+    textposition="outside", textfont=dict(size=8, color="#8899AA")))
+f_qtr.add_trace(go.Bar(x=qtr["Label"], y=qtr["Profit"]/1e7, name="Profit",
+    marker_color=BLUE, opacity=0.85))
+apply(f_qtr, title="Quarterly Revenue & Profit", barmode="group", height=320,
+      xaxis=dict(tickangle=-30, tickfont=dict(color=FONT_C, size=8.5)),
+      yaxis=dict(title="₹ Crores", gridcolor=GRID_C, tickfont=dict(color="#8899AA")),
+      legend=dict(orientation="h", y=1.12))
 
-print("  All charts built")
+print("All charts built. Assembling HTML...")
 
-# ═════════════════════════════════════════════════════════
-# CONVERT FIGURES TO HTML DIVS
-# ═════════════════════════════════════════════════════════
-print("  Converting to HTML...")
+# ════════════════════════════════════════════════════════
+# HTML HELPERS
+# ════════════════════════════════════════════════════════
 
-def fig_html(fig, div_id):
-    return fig.to_html(full_html=False, include_plotlyjs=False, div_id=div_id)
-
-# ═════════════════════════════════════════════════════════
-# ASSEMBLE FULL HTML
-# ═════════════════════════════════════════════════════════
-
-def kpi_card(label, value, subtitle="", color=C_BLUE):
+def kpi(icon, label, value, sub="", color=TEAL):
     return f"""
-    <div class="kpi-card" style="border-top: 4px solid {color};">
-        <div class="kpi-label">{label}</div>
-        <div class="kpi-value">{value}</div>
-        <div class="kpi-sub">{subtitle}</div>
-    </div>"""
+<div class="kpi-card" style="--accent:{color};">
+  <div class="kpi-icon">{icon}</div>
+  <div class="kpi-body">
+    <div class="kpi-label">{label}</div>
+    <div class="kpi-value">{value}</div>
+    <div class="kpi-sub">{sub}</div>
+  </div>
+</div>"""
 
+def chart_box(fig, div_id, span=1):
+    return f'<div class="chart-card span{span}">{fig2html(fig, div_id)}</div>'
+
+def section(title):
+    return f'<div class="section-header"><span>{title}</span></div>'
+
+def nav_item(page_id, icon, label):
+    active = 'class="nav-item active"' if page_id == "p1" else 'class="nav-item"'
+    return f'<div {active} onclick="switchPage(\'{page_id}\',this)">{icon}<span>{label}</span></div>'
+
+def cust_kpi(label, value, color=TEAL):
+    return f'<div class="mini-kpi"><div class="mini-val" style="color:{color}">{value}</div><div class="mini-lbl">{label}</div></div>'
+
+def insight_card(icon, title, obs, rec, color=TEAL):
+    return f"""
+<div class="ins-card" style="--ic:{color};">
+  <div class="ins-head">{icon} {title}</div>
+  <div class="ins-obs">{obs}</div>
+  <div class="ins-rec">→ {rec}</div>
+</div>"""
+
+def badge(text, color):
+    return f'<span class="badge" style="background:{color}22;color:{color};border:1px solid {color}44;">{text}</span>'
+
+priority_rows = [
+    (1, "Win-Back campaign — 1,606 At Risk customers", "+₹5–8 Cr", RED, "Critical"),
+    (2, "No-cost EMI on Electronics >₹20K", "+15–20% AOV", RED, "Critical"),
+    (3, "Reduce cancellation rate: 9% → 5%", "Recover ₹8–10 Cr", RED, "Critical"),
+    (4, "Build July–August mid-year sale", "Reduce festive dependency", ORANGE, "High"),
+    (5, "Reduce Groceries SKUs", "+1–2% overall margin", ORANGE, "High"),
+    (6, "Expand Central India logistics", "₹20–30 Cr new market", ORANGE, "High"),
+    (7, "Grow Clothing & Beauty categories", "Revenue diversification", YELLOW, "Medium"),
+    (8, "Loyalty programme for Champions", "Protect ₹55 Cr base", TEAL, "Medium"),
+]
+
+pr_rows_html = ""
+for i, (num, action, impact, color, prio) in enumerate(priority_rows):
+    bg = "rgba(255,255,255,0.02)" if i % 2 == 0 else "transparent"
+    pr_rows_html += f"""
+<tr style="background:{bg};">
+  <td style="color:{TEAL};font-weight:700;padding:11px 14px;">{num}</td>
+  <td style="padding:11px 14px;color:#E8F0FE;">{action}</td>
+  <td style="padding:11px 14px;color:{TEAL};">{impact}</td>
+  <td style="padding:11px 14px;">{badge(prio, color)}</td>
+</tr>"""
+
+# ════════════════════════════════════════════════════════
+# FINAL HTML
+# ════════════════════════════════════════════════════════
 html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>E-Commerce Sales & Customer Analytics Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>E-Commerce Analytics Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 <style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: 'Segoe UI', Arial, sans-serif; background: {BG}; color: #2C3E50; }}
+*{{box-sizing:border-box;margin:0;padding:0;}}
+:root{{
+  --bg:#0D1B2A; --card:#112233; --sidebar:#0A1628;
+  --accent:{TEAL}; --blue:{BLUE}; --orange:{ORANGE}; --red:{RED};
+  --text:#E8F0FE; --muted:#8899AA; --border:rgba(0,212,170,0.12);
+}}
+html,body{{height:100%;overflow:hidden;font-family:'Inter',sans-serif;
+          background:var(--bg);color:var(--text);}}
 
-  /* ── Header ── */
-  .header {{
-    background: {HDR_BG};
-    color: white;
-    padding: 18px 32px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }}
-  .header h1 {{ font-size: 20px; font-weight: 600; }}
-  .header .subtitle {{ font-size: 12px; color: #BDD7EE; margin-top: 4px; }}
-  .header .date {{ font-size: 11px; color: #BDD7EE; }}
+/* scrollbar */
+::-webkit-scrollbar{{width:5px;height:5px;}}
+::-webkit-scrollbar-track{{background:#0A1628;}}
+::-webkit-scrollbar-thumb{{background:#1E3A5F;border-radius:3px;}}
 
-  /* ── Tabs ── */
-  .tab-bar {{
-    background: #2C3E50;
-    display: flex;
-    padding: 0 32px;
-  }}
-  .tab {{
-    padding: 12px 22px;
-    cursor: pointer;
-    color: #BDD7EE;
-    font-size: 13px;
-    font-weight: 500;
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s;
-  }}
-  .tab:hover {{ color: white; }}
-  .tab.active {{
-    color: white;
-    border-bottom: 3px solid #E67E22;
-    background: rgba(255,255,255,0.05);
-  }}
+/* layout */
+.shell{{display:flex;height:100vh;}}
 
-  /* ── Pages ── */
-  .page {{ display: none; padding: 24px 28px; }}
-  .page.active {{ display: block; }}
+/* ── SIDEBAR ─────────────────────────────────── */
+.sidebar{{
+  width:220px;min-width:220px;
+  background:var(--sidebar);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  padding:0;overflow:hidden;
+}}
+.sb-brand{{
+  padding:22px 20px 18px;
+  border-bottom:1px solid var(--border);
+}}
+.sb-brand .logo{{
+  font-size:13px;font-weight:700;color:var(--accent);
+  letter-spacing:0.5px;text-transform:uppercase;
+}}
+.sb-brand .tagline{{font-size:10px;color:var(--muted);margin-top:3px;}}
+.sb-label{{
+  font-size:9px;font-weight:600;color:var(--muted);
+  letter-spacing:1.2px;text-transform:uppercase;
+  padding:18px 20px 8px;
+}}
+.nav-item{{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 20px;cursor:pointer;
+  font-size:12.5px;font-weight:500;color:var(--muted);
+  border-left:3px solid transparent;
+  transition:all 0.18s ease;
+  user-select:none;
+}}
+.nav-item:hover{{color:var(--text);background:rgba(255,255,255,0.03);}}
+.nav-item.active{{
+  color:var(--accent);
+  background:rgba(0,212,170,0.07);
+  border-left:3px solid var(--accent);
+}}
+.nav-item svg,.nav-item .ni{{width:16px;height:16px;flex-shrink:0;}}
+.sb-footer{{
+  margin-top:auto;padding:16px 20px;
+  border-top:1px solid var(--border);
+  font-size:10px;color:var(--muted);line-height:1.6;
+}}
+.sb-footer strong{{color:var(--accent);}}
 
-  /* ── KPI Cards ── */
-  .kpi-row {{
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 14px;
-    margin-bottom: 22px;
-  }}
-  .kpi-card {{
-    background: white;
-    border-radius: 8px;
-    padding: 16px 18px;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.07);
-  }}
-  .kpi-label {{ font-size: 11px; color: #7F8C8D; text-transform: uppercase;
-                letter-spacing: 0.5px; margin-bottom: 6px; }}
-  .kpi-value {{ font-size: 22px; font-weight: 700; color: #1F3864; }}
-  .kpi-sub {{ font-size: 10px; color: #95A5A6; margin-top: 4px; }}
+/* ── MAIN ────────────────────────────────────── */
+.main{{flex:1;overflow-y:auto;display:flex;flex-direction:column;}}
 
-  /* ── Chart grid ── */
-  .chart-row {{
-    display: grid;
-    gap: 16px;
-    margin-bottom: 18px;
-  }}
-  .col-1 {{ grid-template-columns: 1fr; }}
-  .col-2 {{ grid-template-columns: 1fr 1fr; }}
-  .col-3 {{ grid-template-columns: 1fr 1fr 1fr; }}
-  .col-2-1 {{ grid-template-columns: 2fr 1fr; }}
-  .col-1-2 {{ grid-template-columns: 1fr 2fr; }}
+.topbar{{
+  background:rgba(10,22,40,0.95);
+  backdrop-filter:blur(8px);
+  padding:14px 28px;
+  border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+  position:sticky;top:0;z-index:100;
+}}
+.topbar .page-title{{
+  font-size:17px;font-weight:700;
+  background:linear-gradient(90deg,var(--accent),var(--blue));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}}
+.topbar .meta{{font-size:11px;color:var(--muted);}}
+.topbar .badge-row{{display:flex;gap:8px;}}
+.meta-badge{{
+  background:rgba(0,212,170,0.1);color:var(--accent);
+  border:1px solid rgba(0,212,170,0.25);
+  border-radius:20px;padding:3px 10px;font-size:10px;font-weight:500;
+}}
 
-  .chart-box {{
-    background: white;
-    border-radius: 8px;
-    padding: 16px;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.07);
-    overflow: hidden;
-  }}
+.content{{padding:22px 24px;flex:1;}}
 
-  /* ── Section titles ── */
-  .section-title {{
-    font-size: 13px; font-weight: 700; color: {HDR_BG};
-    text-transform: uppercase; letter-spacing: 0.5px;
-    margin-bottom: 14px; padding-bottom: 6px;
-    border-bottom: 2px solid #E8EEF4;
-  }}
+/* ── PAGES ───────────────────────────────────── */
+.page{{display:none;animation:fadeIn 0.22s ease;}}
+.page.active{{display:block;}}
+@keyframes fadeIn{{from{{opacity:0;transform:translateY(6px);}}to{{opacity:1;transform:none;}}}}
 
-  /* ── Insight boxes ── */
-  .insight-grid {{
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 14px;
-    margin-top: 20px;
-  }}
-  .insight-card {{
-    background: white;
-    border-radius: 8px;
-    padding: 16px 18px;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.07);
-    border-left: 4px solid {C_BLUE};
-  }}
-  .insight-card.warn  {{ border-left-color: {C_ORANGE}; }}
-  .insight-card.alert {{ border-left-color: {C_RED}; }}
-  .insight-card.good  {{ border-left-color: {C_GREEN}; }}
-  .insight-title {{ font-size: 12px; font-weight: 700; color: {HDR_BG};
-                    margin-bottom: 6px; }}
-  .insight-obs   {{ font-size: 11px; color: #555; margin-bottom: 5px; }}
-  .insight-rec   {{ font-size: 11px; color: {C_GREEN}; font-style: italic; }}
+/* ── KPI CARDS ───────────────────────────────── */
+.kpi-grid{{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;margin-bottom:20px;
+}}
+.kpi-card{{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-top:3px solid var(--accent);
+  border-radius:10px;
+  padding:16px 18px;
+  display:flex;align-items:flex-start;gap:12px;
+  transition:transform 0.18s,box-shadow 0.18s;
+}}
+.kpi-card:hover{{
+  transform:translateY(-2px);
+  box-shadow:0 6px 28px rgba(0,0,0,0.35);
+}}
+.kpi-icon{{
+  font-size:22px;line-height:1;
+  background:rgba(255,255,255,0.04);
+  border-radius:8px;padding:8px;
+}}
+.kpi-label{{font-size:10px;color:var(--muted);text-transform:uppercase;
+            letter-spacing:0.6px;margin-bottom:5px;}}
+.kpi-value{{font-size:21px;font-weight:700;color:var(--text);line-height:1;}}
+.kpi-sub{{font-size:10px;color:var(--muted);margin-top:5px;}}
 
-  /* ── Footer ── */
-  .footer {{
-    background: #2C3E50; color: #7F8C8D;
-    text-align: center; padding: 12px;
-    font-size: 11px; margin-top: 28px;
-  }}
+/* ── CHART GRID ──────────────────────────────── */
+.chart-grid{{
+  display:grid;gap:16px;margin-bottom:18px;
+}}
+.g1{{grid-template-columns:1fr;}}
+.g2{{grid-template-columns:1fr 1fr;}}
+.g2l{{grid-template-columns:3fr 2fr;}}
+.g2r{{grid-template-columns:2fr 3fr;}}
+.g3{{grid-template-columns:1fr 1fr 1fr;}}
+
+.chart-card{{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:10px;padding:16px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.3);
+  transition:box-shadow 0.18s;overflow:hidden;
+}}
+.chart-card:hover{{box-shadow:0 6px 32px rgba(0,212,170,0.07),0 4px 24px rgba(0,0,0,0.4);}}
+.chart-card.span2{{grid-column:span 2;}}
+.chart-card.span3{{grid-column:span 3;}}
+
+/* ── SECTION HEADER ──────────────────────────── */
+.section-header{{
+  margin-bottom:14px;margin-top:6px;
+  display:flex;align-items:center;gap:10px;
+}}
+.section-header span{{
+  font-size:11px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1px;
+}}
+.section-header::before,.section-header::after{{
+  content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,var(--border),transparent);
+}}
+.section-header::before{{background:linear-gradient(90deg,transparent,var(--border));}}
+
+/* ── MINI KPI ROW (customer page) ────────────── */
+.mini-kpi-row{{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;}}
+.mini-kpi{{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:8px;padding:12px 18px;flex:1;min-width:120px;
+  text-align:center;
+}}
+.mini-val{{font-size:20px;font-weight:700;}}
+.mini-lbl{{font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;}}
+
+/* ── INSIGHT CARDS ───────────────────────────── */
+.ins-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px;}}
+.ins-card{{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-left:3px solid var(--ic);
+  border-radius:10px;padding:16px 18px;
+  transition:transform 0.18s;
+}}
+.ins-card:hover{{transform:translateY(-2px);}}
+.ins-head{{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;}}
+.ins-obs{{font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:8px;}}
+.ins-rec{{font-size:11px;color:var(--ic);font-style:italic;line-height:1.5;}}
+
+/* ── PRIORITY TABLE ──────────────────────────── */
+.table-card{{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;margin-top:4px;
+}}
+.table-card table{{width:100%;border-collapse:collapse;font-size:12px;}}
+.table-card thead tr{{background:rgba(0,212,170,0.08);}}
+.table-card thead th{{
+  padding:12px 14px;text-align:left;
+  color:var(--muted);font-weight:600;
+  font-size:10px;text-transform:uppercase;letter-spacing:0.8px;
+  border-bottom:1px solid var(--border);
+}}
+.table-card tbody tr{{border-bottom:1px solid rgba(255,255,255,0.03);transition:background 0.12s;}}
+.table-card tbody tr:hover{{background:rgba(255,255,255,0.03);}}
+.badge{{border-radius:20px;padding:3px 10px;font-size:10px;font-weight:600;}}
+
+/* ── PAGE 4 specific ─────────────────────────── */
+.legend-row{{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;}}
+.leg{{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}}
+.leg-dot{{width:10px;height:10px;border-radius:50%;}}
 </style>
 </head>
 <body>
+<div class="shell">
 
-<!-- HEADER -->
-<div class="header">
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<div class="sidebar">
+  <div class="sb-brand">
+    <div class="logo">📊 EcomAnalytics</div>
+    <div class="tagline">Sales &amp; Customer Intelligence</div>
+  </div>
+  <div class="sb-label">Navigation</div>
+  {nav_item("p1","📈","Executive Overview")}
+  {nav_item("p2","📦","Product Analytics")}
+  {nav_item("p3","👥","Customer Analytics")}
+  {nav_item("p4","🗺️","Regional Analytics")}
+  {nav_item("p5","💡","Business Insights")}
+  <div class="sb-footer">
+    <strong>Data Analyst Portfolio</strong><br>
+    50,000 Orders · 5,000 Customers<br>
+    Jan 2022 – Dec 2024<br>
+    Tools: Python · SQL · Plotly
+  </div>
+</div>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<div class="main">
+
+<!-- topbar (dynamic title) -->
+<div class="topbar">
   <div>
-    <h1>E-Commerce Sales &amp; Customer Analytics</h1>
-    <div class="subtitle">50,000 Orders &bull; 5,000 Customers &bull; 7 Categories &bull; 5 Regions &bull; Jan 2022 – Dec 2024</div>
+    <div class="page-title" id="page-title">Executive Overview</div>
+    <div class="meta" id="page-meta">E-Commerce Sales &amp; Customer Analytics · ₹{ts/1e7:.1f} Crores Revenue · {mgn:.1f}% Margin</div>
   </div>
-  <div class="date">Total Revenue: ₹{total_sales/1e7:.1f} Crores &bull; Profit Margin: {margin:.1f}%</div>
+  <div class="badge-row">
+    <span class="meta-badge">50K Orders</span>
+    <span class="meta-badge">5K Customers</span>
+    <span class="meta-badge">₹{ts/1e7:.0f}Cr Revenue</span>
+    <span class="meta-badge">2022–2024</span>
+  </div>
 </div>
 
-<!-- TAB BAR -->
-<div class="tab-bar">
-  <div class="tab active" onclick="showPage('p1',this)">📊 Executive Overview</div>
-  <div class="tab" onclick="showPage('p2',this)">📦 Product Analytics</div>
-  <div class="tab" onclick="showPage('p3',this)">👥 Customer Analytics</div>
-  <div class="tab" onclick="showPage('p4',this)">🗺️ Regional Analytics</div>
-  <div class="tab" onclick="showPage('p5',this)">💡 Business Insights</div>
-</div>
+<div class="content">
 
-<!-- ═══════════════ PAGE 1: EXECUTIVE OVERVIEW ═══════════════ -->
+<!-- ════════════ PAGE 1 ════════════ -->
 <div id="p1" class="page active">
-  <div class="section-title">Key Performance Indicators</div>
-  <div class="kpi-row">
-    {kpi_card("Total Sales", f"₹{total_sales/1e7:.1f} Cr", "All orders", C_BLUE)}
-    {kpi_card("Total Profit", f"₹{total_profit/1e7:.1f} Cr", f"Margin: {margin:.1f}%", C_GREEN)}
-    {kpi_card("Total Orders", f"{total_orders:,}", "Jan 2022–Dec 2024", C_ORANGE)}
-    {kpi_card("Total Customers", f"{total_cust:,}", "Unique buyers", C_PURPLE)}
-    {kpi_card("Avg Order Value", f"₹{aov:,.0f}", "Per order", C_TEAL)}
-    {kpi_card("Profit Margin", f"{margin:.1f}%", "Overall", C_GREEN)}
-    {kpi_card("Delivery Rate", f"{deliver_rate:.1f}%", "Successfully delivered", C_GREEN)}
-    {kpi_card("Cancellation Rate", f"{cancel_rate:.1f}%", "Orders cancelled", C_RED)}
+  {section("Key Performance Indicators")}
+  <div class="kpi-grid">
+    {kpi("💰","Total Sales",f"₹{ts/1e7:.1f}Cr","All orders",TEAL)}
+    {kpi("📈","Total Profit",f"₹{tp/1e7:.1f}Cr",f"Margin {mgn:.1f}%",GREEN)}
+    {kpi("🛒","Total Orders",f"{to:,}","Jan 2022–Dec 2024",BLUE)}
+    {kpi("👤","Customers",f"{tcu:,}","Unique buyers",PURPLE)}
+    {kpi("🎯","Avg Order Value",f"₹{aov:,.0f}","Per order",TEAL)}
+    {kpi("📊","Profit Margin",f"{mgn:.1f}%","Overall",GREEN)}
+    {kpi("✅","Delivery Rate",f"{delr:.1f}%","Successfully delivered",GREEN)}
+    {kpi("❌","Cancellation",f"{canr:.1f}%","Orders cancelled",RED)}
   </div>
-
-  <div class="chart-row col-1">
-    <div class="chart-box">{fig_html(fig_monthly, "fig_monthly")}</div>
+  {section("Revenue & Profit Trend")}
+  <div class="chart-grid g1">
+    {chart_box(f_monthly,"f_monthly")}
   </div>
-  <div class="chart-row col-2">
-    <div class="chart-box">{fig_html(fig_cat_bar, "fig_cat_bar")}</div>
-    <div class="chart-box">{fig_html(fig_reg_col, "fig_reg_col")}</div>
+  {section("Category & Regional Performance")}
+  <div class="chart-grid g2">
+    {chart_box(f_cat,"f_cat")}
+    {chart_box(f_reg,"f_reg")}
   </div>
-  <div class="chart-row col-2">
-    <div class="chart-box">{fig_html(fig_status, "fig_status")}</div>
-    <div class="chart-box">{fig_html(fig_pay, "fig_pay")}</div>
+  {section("Order Status & Payment Distribution")}
+  <div class="chart-grid g2">
+    {chart_box(f_status,"f_status")}
+    {chart_box(f_pay,"f_pay")}
   </div>
 </div>
 
-<!-- ═══════════════ PAGE 2: PRODUCT ANALYTICS ═══════════════ -->
+<!-- ════════════ PAGE 2 ════════════ -->
 <div id="p2" class="page">
-  <div class="chart-row col-2">
-    <div class="chart-box">{fig_html(fig_top10, "fig_top10")}</div>
-    <div class="chart-box">{fig_html(fig_bot10, "fig_bot10")}</div>
+  {section("Top & Bottom Performing Products")}
+  <div class="chart-grid g2">
+    {chart_box(f_top10,"f_top10")}
+    {chart_box(f_bot10,"f_bot10")}
   </div>
-  <div class="chart-row col-1">
-    <div class="chart-box">{fig_html(fig_subcat, "fig_subcat")}</div>
+  {section("Sub-Category & Product Profitability")}
+  <div class="chart-grid g1">
+    {chart_box(f_sub,"f_sub")}
   </div>
-  <div class="chart-row col-1">
-    <div class="chart-box">{fig_html(fig_scatter, "fig_scatter")}</div>
+  <div class="chart-grid g1">
+    {chart_box(f_scatter,"f_scatter")}
   </div>
 </div>
 
-<!-- ═══════════════ PAGE 3: CUSTOMER ANALYTICS ═══════════════ -->
+<!-- ════════════ PAGE 3 ════════════ -->
 <div id="p3" class="page">
-  <div class="kpi-row">
-    {kpi_card("Total Customers", f"{total_cust:,}", "Unique", C_BLUE)}
-    {kpi_card("Champions", f"{int(seg_plot[seg_plot['Segment']=='Champions']['Count'].values[0]):,}",
-              "RFM top segment", "#27AE60")}
-    {kpi_card("At Risk", f"{int(seg_plot[seg_plot['Segment']=='At Risk']['Count'].values[0]):,}",
-              "Need win-back", C_ORANGE)}
-    {kpi_card("Avg Orders/Customer",
-              f"{df.groupby('Customer_ID')['Order_ID'].nunique().mean():.1f}",
-              "Per customer", C_PURPLE)}
-    {kpi_card("Repeat Customer Rate",
-              f"{df[df['Customer_Type']=='Returning']['Customer_ID'].nunique()/total_cust*100:.1f}%",
-              "Returning customers", C_GREEN)}
-    {kpi_card("Revenue per Customer", f"₹{total_sales/total_cust/1e3:.0f}K",
-              "Lifetime avg", C_TEAL)}
+  {section("Customer KPIs")}
+  <div class="mini-kpi-row">
+    {cust_kpi("Total Customers",f"{tcu:,}",TEAL)}
+    {cust_kpi("Champions",f"{int(seg_clean[seg_clean['Segment']=='Champions']['Count'].iloc[0]) if 'Champions' in seg_clean['Segment'].values else 0:,}",GREEN)}
+    {cust_kpi("At Risk",f"{int(seg_clean[seg_clean['Segment']=='At Risk']['Count'].iloc[0]) if 'At Risk' in seg_clean['Segment'].values else 0:,}",ORANGE)}
+    {cust_kpi("Avg Orders/Customer",f"{df.groupby('Customer_ID')['Order_ID'].nunique().mean():.1f}",BLUE)}
+    {cust_kpi("Returning Rate",f"{retr:.1f}%",TEAL)}
+    {cust_kpi("Revenue/Customer",f"₹{ts/tcu/1e3:.0f}K",PURPLE)}
   </div>
-  <div class="chart-row col-2">
-    <div class="chart-box">{fig_html(fig_rfm_donut, "fig_rfm_donut")}</div>
-    <div class="chart-box">{fig_html(fig_rfm_rev, "fig_rfm_rev")}</div>
+  {section("RFM Segmentation")}
+  <div class="chart-grid g2">
+    {chart_box(f_rfm_donut,"f_rfm_donut")}
+    {chart_box(f_rfm_rev,"f_rfm_rev")}
   </div>
-  <div class="chart-row col-2">
-    <div class="chart-box">{fig_html(fig_ctype, "fig_ctype")}</div>
-    <div class="chart-box">{fig_html(fig_age, "fig_age")}</div>
+  {section("New vs Returning · Age Distribution")}
+  <div class="chart-grid g2">
+    {chart_box(f_ctype,"f_ctype")}
+    {chart_box(f_age,"f_age")}
   </div>
-  <div class="chart-row col-1">
-    <div class="chart-box">{fig_html(fig_top_cust, "fig_top_cust")}</div>
+  {section("Top 15 Customers by Lifetime Spend")}
+  <div class="chart-grid g1">
+    {chart_box(f_top_cust,"f_top_cust")}
   </div>
 </div>
 
-<!-- ═══════════════ PAGE 4: REGIONAL ANALYTICS ═══════════════ -->
+<!-- ════════════ PAGE 4 ════════════ -->
 <div id="p4" class="page">
-  <div class="chart-row col-2">
-    <div class="chart-box">{fig_html(fig_states, "fig_states")}</div>
-    <div class="chart-box">{fig_html(fig_heatmap, "fig_heatmap")}</div>
+  {section("State & Regional Performance")}
+  <div class="legend-row">
+    {''.join(f'<div class="leg"><div class="leg-dot" style="background:{c};"></div>{r}</div>' for r,c in REG_C.items())}
   </div>
-  <div class="chart-row col-2">
-    <div class="chart-box">{fig_html(fig_season, "fig_season")}</div>
-    <div class="chart-box">{fig_html(fig_quarterly, "fig_quarterly")}</div>
+  <div class="chart-grid g2l">
+    {chart_box(f_states,"f_states")}
+    {chart_box(f_heat,"f_heat")}
+  </div>
+  {section("Seasonal & Quarterly Trends")}
+  <div class="chart-grid g2">
+    {chart_box(f_seas,"f_seas")}
+    {chart_box(f_qtr,"f_qtr")}
   </div>
 </div>
 
-<!-- ═══════════════ PAGE 5: BUSINESS INSIGHTS ═══════════════ -->
+<!-- ════════════ PAGE 5 ════════════ -->
 <div id="p5" class="page">
-  <div class="section-title">Data-Driven Business Insights & Recommendations</div>
-
-  <div class="insight-grid">
-    <div class="insight-card warn">
-      <div class="insight-title">⚠️ Insight 1 — Electronics Concentration Risk</div>
-      <div class="insight-obs"><b>Observation:</b> Electronics = 79.4% of total revenue (₹162.6 Cr) with 47.7% margin.</div>
-      <div class="insight-obs"><b>Insight:</b> High dependency on one category creates significant supply chain and market risk.</div>
-      <div class="insight-rec">→ Grow Clothing (45.5%) and Beauty (45.4%) to diversify. Target Electronics below 65% in 2 years.</div>
-    </div>
-    <div class="insight-card alert">
-      <div class="insight-title">🚨 Insight 2 — Groceries: 20.4% Margin</div>
-      <div class="insight-obs"><b>Observation:</b> Groceries generate only ₹1.6L profit on ₹7.9L sales — lowest margin by far.</div>
-      <div class="insight-obs"><b>Insight:</b> Storage, logistics, and handling costs likely erode this margin further in reality.</div>
-      <div class="insight-rec">→ Reduce Groceries SKUs. Do not invest marketing budget here. Re-price staples.</div>
-    </div>
-    <div class="insight-card">
-      <div class="insight-title">📍 Insight 3 — Central Region Underperformance</div>
-      <div class="insight-obs"><b>Observation:</b> Central = only 11% of revenue (₹22.5 Cr) vs North's 25.3% (₹51.7 Cr).</div>
-      <div class="insight-obs"><b>Insight:</b> Lower digital penetration, fewer logistics options, and limited brand awareness.</div>
-      <div class="insight-rec">→ Invest in Central logistics. Run campaigns in Bhopal, Indore, Raipur. Offer COD incentives.</div>
-    </div>
-    <div class="insight-card warn">
-      <div class="insight-title">🎉 Insight 4 — Festive Season = 36.3% of Revenue</div>
-      <div class="insight-obs"><b>Observation:</b> Oct–Dec drives 36.3% of annual revenue. Q4 2022 grew 108% QoQ.</div>
-      <div class="insight-obs"><b>Insight:</b> High seasonal dependency is a risk — one bad Diwali campaign = missed annual targets.</div>
-      <div class="insight-rec">→ Build a July–August mid-year sale. Begin inventory build 8–10 weeks before Diwali.</div>
-    </div>
-    <div class="insight-card good">
-      <div class="insight-title">📱 Insight 5 — UPI at 30%, EMI Opportunity</div>
-      <div class="insight-obs"><b>Observation:</b> UPI = 30% of all orders. EMI = 7.2% but likely highest basket size.</div>
-      <div class="insight-obs"><b>Insight:</b> EMI customers are buying expensive Electronics — high-value segment.</div>
-      <div class="insight-rec">→ Partner with banks for no-cost EMI on Electronics >₹20K. UPI cashback for off-season months.</div>
-    </div>
-    <div class="insight-card alert">
-      <div class="insight-title">❌ Insight 6 — ₹31.1 Cr Lost to Cancellations + Returns</div>
-      <div class="insight-obs"><b>Observation:</b> Cancelled: ₹18.8 Cr. Returned: ₹12.3 Cr. Total = 15.2% of sales.</div>
-      <div class="insight-obs"><b>Insight:</b> Logistics cost is incurred even for cancelled/returned orders — pure loss.</div>
-      <div class="insight-rec">→ Video unboxing return policy for Electronics. Target cancellation rate below 5%.</div>
-    </div>
-    <div class="insight-card good">
-      <div class="insight-title">🔄 Insight 7 — Returning Customers: Volume Advantage</div>
-      <div class="insight-obs"><b>Observation:</b> Returning AOV ₹40,900 ≈ New AOV ₹41,083 but Returning = 30,077 orders vs 19,923.</div>
-      <div class="insight-obs"><b>Insight:</b> Lifetime value driven by frequency, not basket size.</div>
-      <div class="insight-rec">→ Loyalty programme: reward every 5th order. Re-engage customers inactive for 90+ days.</div>
-    </div>
-    <div class="insight-card warn">
-      <div class="insight-title">🎯 Insight 8 — 1,606 At Risk Customers</div>
-      <div class="insight-obs"><b>Observation:</b> RFM identifies 1,606 customers who previously bought but are now inactive.</div>
-      <div class="insight-obs"><b>Insight:</b> Win-back cost is 5x cheaper than new customer acquisition.</div>
-      <div class="insight-rec">→ Personalised win-back email with 10% discount. Auto-trigger at 60 days inactivity.</div>
-    </div>
-    <div class="insight-card">
-      <div class="insight-title">📉 Insight 9 — Volume Traps (High Sales, Low Margin)</div>
-      <div class="insight-obs"><b>Observation:</b> 10 products have sales >₹10L but margin &lt;35% (mainly Home & Kitchen, Sports).</div>
-      <div class="insight-obs"><b>Insight:</b> These consume resources without proportional profit contribution.</div>
-      <div class="insight-rec">→ Reduce discounts by 5%. Bundle with high-margin items. De-list if margin stays below 25%.</div>
-    </div>
+  {section("Data-Driven Business Insights")}
+  <div class="ins-grid">
+    {insight_card("⚠️","Electronics Concentration Risk",
+      f"Electronics = 79.4% of revenue (₹162.6Cr). Single-category dependency creates supply chain risk.",
+      "Grow Clothing (45.5% margin) and Beauty (45.4%). Target Electronics below 65% in 2 years.",ORANGE)}
+    {insight_card("🚨","Groceries: 20.4% Margin Alert",
+      f"Groceries generate only ₹1.6L profit on ₹7.9L sales — far below every other category.",
+      "Reduce SKUs. Stop marketing investment. Re-price staples upward by 5–8%.",RED)}
+    {insight_card("📍","Central Region Underperformance",
+      f"Central India = only 11% of revenue (₹22.5Cr) vs North's 25.3% (₹51.7Cr).",
+      "Invest in Central logistics. Campaigns in Bhopal, Indore, Raipur. COD incentives.",BLUE)}
+    {insight_card("🎉","Q4 Festive = 36.3% of Annual Revenue",
+      f"Oct–Dec drives ₹74.3Cr annually. Q4 2022 grew 108% QoQ. One bad campaign = missed target.",
+      "Build July–August mid-year sale. Begin inventory build 8 weeks before Diwali.",TEAL)}
+    {insight_card("📱","UPI Leads · EMI is Untapped",
+      f"UPI = 30% of orders. EMI = only 7.2% but likely the highest basket size (Electronics buyers).",
+      "Partner with banks for no-cost EMI on Electronics >₹20K. UPI cashback in lean months.",GREEN)}
+    {insight_card("❌","₹31.1 Cr Lost to Cancellations & Returns",
+      f"Cancelled: ₹18.8Cr. Returned: ₹12.3Cr. Combined = 15.2% of total sales.",
+      "Video unboxing return policy for Electronics. Target cancellation rate below 5%.",RED)}
+    {insight_card("🔄","Returning Customers: Volume Advantage",
+      f"Returning AOV ₹40,900 ≈ New AOV ₹41,083 but Returning = 30,077 orders vs 19,923.",
+      "Loyalty programme: reward every 5th order. Re-engage customers inactive 90+ days.",TEAL)}
+    {insight_card("🎯","1,606 At Risk Customers",
+      f"RFM model identifies 1,606 customers who bought before but are now inactive.",
+      "Personalised win-back email with 10% discount. Auto-trigger at 60 days inactivity.",ORANGE)}
+    {insight_card("📉","Volume Trap Products",
+      f"10 products have sales >₹10L but margins below 35% — mainly Home & Kitchen and Sports.",
+      "Reduce discounts by 5%. Bundle with high-margin items. De-list if below 25% for 2 quarters.",PURPLE)}
   </div>
-
-  <div style="margin-top:24px; background:white; border-radius:8px; padding:20px;
-              box-shadow: 0 1px 6px rgba(0,0,0,0.07);">
-    <div class="section-title">Priority Action Plan</div>
-    <table style="width:100%; border-collapse:collapse; font-size:12px;">
+  {section("Priority Action Plan")}
+  <div class="table-card">
+    <table>
       <thead>
-        <tr style="background:{HDR_BG}; color:white;">
-          <th style="padding:10px; text-align:left;">#</th>
-          <th style="padding:10px; text-align:left;">Action</th>
-          <th style="padding:10px; text-align:left;">Expected Impact</th>
-          <th style="padding:10px; text-align:center;">Priority</th>
+        <tr>
+          <th>#</th><th>Recommended Action</th>
+          <th>Expected Impact</th><th>Priority</th>
         </tr>
       </thead>
-      <tbody>
-        {"".join(f'''<tr style="background:{'#F8F9FA' if i%2==0 else 'white'}; border-bottom:1px solid #EEE;">
-          <td style="padding:9px 10px; font-weight:700; color:{HDR_BG};">{row[0]}</td>
-          <td style="padding:9px 10px;">{row[1]}</td>
-          <td style="padding:9px 10px; color:{C_GREEN};">{row[2]}</td>
-          <td style="padding:9px 10px; text-align:center;">{row[3]}</td>
-        </tr>''' for i, row in enumerate([
-            (1, "Win-Back campaign for 1,606 At Risk customers", "+₹5–8 Cr recovery", "🔴 Critical"),
-            (2, "No-cost EMI for Electronics orders >₹20K", "+15–20% Electronics AOV", "🔴 Critical"),
-            (3, "Reduce cancellation rate from 9% to 5%", "Recover ₹8–10 Cr", "🔴 Critical"),
-            (4, "Build July–August mid-year sale event", "Reduce festive dependency", "🟠 High"),
-            (5, "Reduce Groceries SKUs to high-margin items", "+1–2% overall margin", "🟠 High"),
-            (6, "Invest in Central India logistics", "Unlock ₹20–30 Cr market", "🟠 High"),
-            (7, "Grow Clothing & Beauty categories", "Revenue diversification", "🟡 Medium"),
-            (8, "Loyalty programme for 726 Champions", "Protect ₹55 Cr revenue base", "🟡 Medium"),
-        ]))}
-      </tbody>
+      <tbody>{pr_rows_html}</tbody>
     </table>
   </div>
 </div>
 
-<!-- FOOTER -->
-<div class="footer">
-  E-Commerce Sales & Customer Analytics | Built with Python + Plotly |
-  Data: 50,000 orders · 5,000 customers · ₹204.9 Crores · Jan 2022 – Dec 2024
-</div>
+</div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
 
 <script>
-function showPage(pageId, tabEl) {{
+const pageTitles = {{
+  p1:"Executive Overview", p2:"Product Analytics",
+  p3:"Customer Analytics", p4:"Regional Analytics",
+  p5:"Business Insights"
+}};
+function switchPage(id, el) {{
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(pageId).classList.add('active');
-  tabEl.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[id];
 }}
 </script>
-
 </body>
 </html>"""
 
-# ── Write file ───────────────────────────────────────────
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
 with open(OUT, "w", encoding="utf-8") as f:
     f.write(html)
 
-size_mb = os.path.getsize(OUT) / (1024*1024)
-print(f"\n{'='*60}")
-print("  Phase 8 — Interactive Dashboard COMPLETE")
-print(f"{'='*60}")
-print(f"\n  File : {os.path.abspath(OUT)}")
-print(f"  Size : {size_mb:.1f} MB")
-print(f"\n  Open in browser:")
-print(f"  powerbi/ecommerce_dashboard.html")
-print(f"\n  Pages:")
-print("    1. Executive Overview — 8 KPIs + monthly trend + category + region")
-print("    2. Product Analytics  — top/bottom 10 + sub-category + scatter")
-print("    3. Customer Analytics — RFM segments + new vs returning + top 15")
-print("    4. Regional Analytics — state bar + heatmap + seasonal + quarterly")
-print("    5. Business Insights  — 9 insights + priority action table")
+size_mb = os.path.getsize(OUT) / 1024 / 1024
+print(f"\n{'='*55}")
+print(f"  Dashboard saved: powerbi/ecommerce_dashboard.html")
+print(f"  File size      : {size_mb:.2f} MB")
+print(f"{'='*55}")
